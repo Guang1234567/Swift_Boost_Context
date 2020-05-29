@@ -1,0 +1,3 @@
+[submodule "Sources/C_Boost_Context"]
+	path = Sources/C_Boost_Context
+	url = https://github.com/boostorg/context.git

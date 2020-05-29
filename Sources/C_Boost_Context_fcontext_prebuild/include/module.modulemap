@@ -1,0 +1,4 @@
+module C_Boost_Context_fcontext_prebuild {
+  header "fcontext.h"
+  export *
+}

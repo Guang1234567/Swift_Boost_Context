@@ -107,7 +107,7 @@ class BoostContextImpl<_IN>: BoostContext {
         //let spSize: Int = 1 << 18 /* 256 KiB*/
         //let spSize: Int = 1 << 17 /* 128 KiB*/
         //let spSize: Int = 1 << 16 /* 64 KiB*/
-        let spSize: Int = .pageSize * 8
+        let spSize: Int = .pageSize * 16
         let sp: FContextStack = .allocate(byteCount: spSize, alignment: .pageSize)
         mprotect(sp, .pageSize, PROT_READ)
         self._fn = fn

@@ -26,7 +26,7 @@ let package = Package(
                     name: "C_Boost_Context_fcontext",
                     path: "Sources/C_Boost_Context_fcontext",
                     exclude: ["./asm"],
-                    //sources: ["./fcontext.S", "./segv_handler.c"],
+                    //sources: ["./fcontext.S", "./helper.c"],
                     cSettings: [
                         .headerSearchPath("include"),
                         .unsafeFlags([""], .when(platforms: [.macOS])),

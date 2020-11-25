@@ -16,7 +16,10 @@ func main() throws {
 
     Thread.sleep(forTimeInterval: 5)*/
 
-    try example_04()
+    //try example_04()
+
+    let t = Tester()
+    t.start(7)
 }
 
 do {
@@ -38,19 +41,13 @@ class Tester: CustomStringConvertible, CustomDebugStringConvertible {
     func f1(_ fromCtx: BoostContext, _ data: Int) -> Void {
         defer {
             print("f1 finish")
+            print("f1 never reach defer block too !")
+            print("So donot dispose your res alloced before here !")
         }
         print("main ----> f1  fromCtx = \(fromCtx)  data = \(data)")
 
-        /*
-        queue.async {
-            let bc2: BoostContext = makeBoostContext(f2)
-            print("bc2 = \(bc2)")
-            let resultF1ToMain: BoostTransfer<String> = bc2.jump(data: "321")
-            print("queue <---- f2 resultF1ToMain = \(resultF1ToMain.data)")
-        }
-        */
-
         let _: BoostTransfer<Void> = fromCtx.jump(data: "7654321")
+        print("f1 never reach here")
     }
 
     func f2(_ fromCtx: BoostContext, _ data: String) -> Void {

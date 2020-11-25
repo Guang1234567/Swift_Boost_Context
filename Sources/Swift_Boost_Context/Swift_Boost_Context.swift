@@ -98,7 +98,7 @@ class BoostContextImpl<_IN>: BoostContext {
     private let _fctx: fcontext_t
 
     deinit {
-        mprotect(_sp, .pageSize, PROT_READ | PROT_WRITE)
+        //mprotect(_sp, .pageSize, PROT_READ | PROT_WRITE)
         _sp.deallocate()
         //print("BoostContextImpl.deinit: _spSize: \(_spSize), _sp: \(_sp), _fctx: \(_fctx), .pageSize: \(Int.pageSize)")
     }
@@ -109,11 +109,11 @@ class BoostContextImpl<_IN>: BoostContext {
         //let spSize: Int = 1 << 16 /* 64 KiB*/
         let spSize: Int = .pageSize * 16
         let sp: FContextStack = .allocate(byteCount: spSize, alignment: .pageSize)
-        mprotect(sp, .pageSize, PROT_READ)
         self._fn = fn
         self._spSize = spSize
         self._sp = sp
         self._fctx = make_fcontext(sp + spSize, spSize, cFn)
+        //mprotect(sp, .pageSize, PROT_READ)
         //print("_fctx = \(_fctx)")
     }
 

@@ -5,7 +5,7 @@ import Foundation
 func signalHandler(signal: Int32) -> Void {
     var stackTrace = String();
     for symbol in Thread.callStackSymbols {
-        stackTrace = stackTrace.appendingFormat("%@\r\n", symbol);
+        stackTrace = stackTrace.appending("%@\r\n\(symbol)");
     }
     print("**********************************************\n")
     print("\(stackTrace)")

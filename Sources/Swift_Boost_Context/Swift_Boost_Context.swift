@@ -1,4 +1,3 @@
-//import C_Boost_Context_fcontext_prebuild
 
 import C_Boost_Context_fcontext
 
@@ -8,13 +7,13 @@ struct Swift_Boost_Context {
     var text = "Hello, World!"
 }
 
-public class BoostTransfer<_OUT>: CustomDebugStringConvertible, CustomStringConvertible {
+public class BoostTransfer<OUTPUT>: CustomDebugStringConvertible, CustomStringConvertible {
 
     public let fromContext: BoostContext
 
-    public let data: _OUT
+    public let data: OUTPUT
 
-    init(_ fromContext: BoostContext, _ data: _OUT) {
+    init(_ fromContext: BoostContext, _ data: OUTPUT) {
         self.fromContext = fromContext
         self.data = data
     }
@@ -29,9 +28,9 @@ public class BoostTransfer<_OUT>: CustomDebugStringConvertible, CustomStringConv
 
 public protocol BoostContext: class, CustomDebugStringConvertible, CustomStringConvertible {
 
-    func jump<_IN, _OUT>(data: _IN) -> BoostTransfer<_OUT>
+    func jump<INPUT, OUTPUT>(data: INPUT) -> BoostTransfer<OUTPUT>
 
-    func jump<_OUT>() -> BoostTransfer<_OUT>
+    func jump<OUTPUT>() -> BoostTransfer<OUTPUT>
 }
 
 class BoostContextProxy: BoostContext {
@@ -41,23 +40,23 @@ class BoostContextProxy: BoostContext {
     init(_ fctx: fcontext_t) { self._fctx = fctx }
 
 
-    func jump<__IN, __OUT>(data: __IN) -> BoostTransfer<__OUT> {
-        let input: UnsafeMutablePointer<__IN> = UnsafeMutablePointer.allocate(capacity: 1)
+    func jump<INPUT, OUTPUT>(data: INPUT) -> BoostTransfer<OUTPUT> {
+        let input: UnsafeMutablePointer<INPUT> = UnsafeMutablePointer.allocate(capacity: 1)
         input.initialize(repeating: data, count: 1)
 
         //print("BoostContextProxy.jump : _fctx = \(self._fctx)")
         let tf: transfer_t = jump_fcontext(self._fctx, input)
         //print("BoostContextProxy.jump : tf = \(tf)")
-        let output: UnsafeMutablePointer<__OUT> = tf.data!.bindMemory(to: __OUT.self, capacity: 1)
+        let output: UnsafeMutablePointer<OUTPUT> = tf.data!.bindMemory(to: OUTPUT.self, capacity: 1)
         defer {
             output.deinitialize(count: 1)
             output.deallocate()
         }
-        let result: __OUT = output.pointee
+        let result: OUTPUT = output.pointee
         return BoostTransfer(BoostContextProxy(tf.fctx), result)
     }
 
-    func jump<_OUT>() -> BoostTransfer<_OUT> {
+    func jump<OUTPUT>() -> BoostTransfer<OUTPUT> {
         return self.jump(data: ())
     }
 
@@ -70,7 +69,7 @@ class BoostContextProxy: BoostContext {
     }
 }
 
-typealias CCallBack = (BoostContext) -> Void
+typealias CCallBack = (fcontext_t) -> Void
 
 private func cFn(_ tf: transfer_t) -> Void {
     let input: UnsafeMutablePointer<CCallBack>? = tf.data?.bindMemory(to: CCallBack.self, capacity: 1)
@@ -78,8 +77,7 @@ private func cFn(_ tf: transfer_t) -> Void {
         let callback = input.pointee
         input.deinitialize(count: 1)
         input.deallocate()
-        let fromCtx: BoostContextProxy = BoostContextProxy(tf.fctx)
-        callback(fromCtx)
+        callback(tf.fctx)
     }
 }
 
@@ -98,7 +96,6 @@ class BoostContextImpl<_IN>: BoostContext {
     private let _fctx: fcontext_t
 
     deinit {
-        //mprotect(_sp, .pageSize, PROT_READ | PROT_WRITE)
         _sp.deallocate()
         //print("BoostContextImpl.deinit: _spSize: \(_spSize), _sp: \(_sp), _fctx: \(_fctx), .pageSize: \(Int.pageSize)")
     }
@@ -113,13 +110,13 @@ class BoostContextImpl<_IN>: BoostContext {
         self._spSize = spSize
         self._sp = sp
         self._fctx = make_fcontext(sp + spSize, spSize, cFn)
-        //mprotect(sp, .pageSize, PROT_READ)
         //print("_fctx = \(_fctx)")
     }
 
 
-    func jump<__IN, __OUT>(data: __IN) -> BoostTransfer<__OUT> {
-        let callback: CCallBack = { [unowned self] (fromBoostContext: BoostContext) in
+    func jump<INPUT, OUTPUT>(data: INPUT) -> BoostTransfer<OUTPUT> {
+        let callback: CCallBack = { [unowned self] (fromContext: fcontext_t) in
+            let fromBoostContext: BoostContextProxy = BoostContextProxy(fromContext)
             self._fn(fromBoostContext, data as! _IN)
         }
 
@@ -134,12 +131,12 @@ class BoostContextImpl<_IN>: BoostContext {
         //print("jump : _fctx = \(self._fctx)")
         let tf: transfer_t = jump_fcontext(self._fctx, input)
         //print("jump : tf = \(tf)")
-        let output: UnsafeMutablePointer<__OUT> = tf.data!.bindMemory(to: __OUT.self, capacity: 1)
+        let output: UnsafeMutablePointer<OUTPUT> = tf.data!.bindMemory(to: OUTPUT.self, capacity: 1)
         defer {
             output.deinitialize(count: 1)
             output.deallocate()
         }
-        let result: __OUT = output.pointee
+        let result: OUTPUT = output.pointee
         return BoostTransfer(BoostContextProxy(tf.fctx), result)
     }
 
@@ -155,7 +152,7 @@ class BoostContextImpl<_IN>: BoostContext {
     }
 }
 
-public func makeBoostContext<__IN>(_ fn: @escaping (BoostContext, __IN) -> Void) -> BoostContext {
+public func makeBoostContext<INPUT>(_ fn: @escaping (BoostContext, INPUT) -> Void) -> BoostContext {
     return BoostContextImpl(fn)
 }
 

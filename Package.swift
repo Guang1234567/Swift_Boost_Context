@@ -1,4 +1,4 @@
-// swift-tools-version:5.2
+// swift-tools-version:5.3
 // The swift-tools-version declares the minimum version of Swift required to build this package.
 
 import PackageDescription
@@ -30,10 +30,15 @@ let package = Package(
                     cSettings: [
                         .headerSearchPath("include"),
                         .unsafeFlags([""], .when(platforms: [.macOS])),
-                        .unsafeFlags([""], .when(platforms: [.iOS]))
+                        .unsafeFlags([""], .when(platforms: [.iOS])),
+                        .unsafeFlags([""], .when(platforms: [.android])),
+                        .unsafeFlags([""], .when(platforms: [.linux]))
                     ],
                     swiftSettings: [
-                        .unsafeFlags([""], .when(platforms: [.macOS]))
+                        .unsafeFlags([""], .when(platforms: [.macOS])),
+                        .unsafeFlags([""], .when(platforms: [.iOS])),
+                        .unsafeFlags([""], .when(platforms: [.android])),
+                        .unsafeFlags([""], .when(platforms: [.linux]))
                     ]
             ),
             /*.target(

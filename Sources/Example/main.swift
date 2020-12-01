@@ -29,53 +29,45 @@ do {
 }
 
 
-class Tester: CustomStringConvertible, CustomDebugStringConvertible {
+class Tester {
     deinit {
-        print("Tester deint")
+        print("Tester deinit")
     }
 
     init() {
 
     }
 
-    func f1(_ fromCtx: BoostContext, _ data: Int) -> Void {
+    func f1(data: Int, yield: FN_YIELD<String, Int>) -> String {
         defer {
             print("f1 finish")
-            print("f1 never reach defer block too !")
-            print("So donot dispose your res alloced before here !")
         }
-        print("main ----> f1  fromCtx = \(fromCtx)  data = \(data)")
 
-        let _: BoostTransfer<Void> = fromCtx.jump(data: "7654321")
-        print("f1 never reach here")
-    }
+        print("main ----> f1    data = \(data)")
 
-    func f2(_ fromCtx: BoostContext, _ data: String) -> Void {
-        defer {
-            print("f2 finish")
-        }
-        print("queue ----> f2  fromCtx = \(fromCtx)")
+        let data1: Int = yield("1234567")
+        print("main ----> f1    data = \(data1)")
 
-        let _: BoostTransfer<Void> = fromCtx.jump(data: "1234567")
+        let data2: Int = yield("7654321")
+        print("main ----> f1    data = \(data2)")
+
+        return "9876543"
     }
 
     func start(_ idx: Int) {
-        let bc1: BoostContext = makeBoostContext(self.f1)
-        print("bc1 = \(bc1)  --  \(idx)")
-        let resultF1ToMain: BoostTransfer<String> = bc1.jump(data: 123)
-        print("resultF1ToMain = \(resultF1ToMain)  --  \(idx)")
-        let pointer = Unmanaged.passUnretained(self).toOpaque()
-        let _ = Unmanaged<Tester>.fromOpaque(pointer).takeRetainedValue()
-        print("main <---- f1 resultF1ToMain = \(resultF1ToMain.data)  --  \(idx)")
-    }
+        let yield: FN_YIELD<Int, String> = makeBoostContext(self.f1)
 
-    var description: String {
-        return "Tester(321)"
-    }
-    var debugDescription: String {
-        return "Tester(321)"
+        let data1: String = yield(123)
+        print("main <---- f1    data = \(data1)")
+
+        let data2: String = yield(765)
+        print("main <---- f1    data = \(data2)")
+
+        let data3: String = yield(987)
+        print("main <---- f1    data = \(data3)")
     }
 }
+
 
 func example_04() throws {
     // Example-04

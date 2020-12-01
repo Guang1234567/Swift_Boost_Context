@@ -13,7 +13,7 @@ public class CoFuture<R>: CustomDebugStringConvertible, CustomStringConvertible 
 
     var _result: Result<R, Error>?
 
-    var _bctx: BoostContext!
+    var _yield: FN_YIELD<Void, Result<R, Error>>
 
     deinit {
         print("\(self) : deinit")
@@ -25,27 +25,19 @@ public class CoFuture<R>: CustomDebugStringConvertible, CustomStringConvertible 
         self._result = nil
 
         // no memory leak!
-        /*self._bctx = makeBoostContext { (fromCtx: BoostContext, data: Void) -> Void in
+        self._yield = makeBoostContext { (data, yield) -> Result<R, Error> in
             let result: Result<R, Error> = Result {
                 try task()
             }
-            let _: BoostTransfer<Void> = fromCtx.jump(data: result)
-        }*/
 
-        self._bctx = makeBoostContext { [unowned self] (fromCtx: BoostContext, data: Void) -> Void in
-            let result: Result<R, Error> = Result { [unowned self] in
-                try self._task()
-            }
-
-            let _: BoostTransfer<Void> = fromCtx.jump(data: result)
+            return result
         }
     }
 
     @discardableResult
     public func await() throws -> R {
-        //let pSelf: UnsafeMutableRawPointer = Unmanaged.passUnretained(self).toOpaque()
-        let btf: BoostTransfer<Result<R, Error>> = self._bctx.jump(data: ())
-        return try btf.data.get()
+        let data: Result<R, Error> = self._yield(())
+        return try data.get()
     }
 
     public func cancel() -> Void {

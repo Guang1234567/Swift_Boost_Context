@@ -49,38 +49,48 @@ Source: [Boost.Context](https://www.boost.org/doc/libs/1_73_0/libs/context/doc/h
 ```swift
 import Swift_Boost_Context
 
-func f1(_ data: Int) throws -> String {
-    defer {
-        print("f1 finish")
+class Tester {
+    deinit {
+        print("Tester deinit")
     }
-    print("main ----> f1  data = \(data)")
 
-    let bc2: BoostContext = makeBoostContext(f2)
-    print("bc2 = \(bc2)")
-    let resultF2ToF1: BoostTransfer<String> = try bc2.jump(data: "I am f1")
-    print("f1 <---- f2   resultF2ToF1 = \(resultF2ToF1)")
+    init() {
 
-    return "7654321"
-}
-
-func f2(_ data: String) throws -> String {
-    defer {
-        print("f2 finish")
     }
-    print("f1 ----> f2  data = \(data)")
 
-    return "1234567"
+    func f1(data: Int, yield: FN_YIELD<String, Int>) -> String {
+        defer {
+            print("f1 finish")
+        }
+
+        print("main ----> f1    data = \(data)")
+
+        let data1: Int = yield("1234567")
+        print("main ----> f1    data = \(data1)")
+
+        let data2: Int = yield("7654321")
+        print("main ----> f1    data = \(data2)")
+
+        return "9876543"
+    }
+
+    func start(_ idx: Int) {
+        let yield: FN_YIELD<Int, String> = makeBoostContext(self.f1)
+
+        let data1: String = yield(123)
+        print("main <---- f1    data = \(data1)")
+
+        let data2: String = yield(765)
+        print("main <---- f1    data = \(data2)")
+
+        let data3: String = yield(987)
+        print("main <---- f1    data = \(data3)")
+    }
 }
 
 func main() throws {
-    let bc1: BoostContext = makeBoostContext(f1)
-    print("bc1 = \(bc1)")
-    //let bc2: BoostContext = makeBoostContext(f2)
-    //print("bc2 = \(bc2)")
-
-    let resultF1ToMain: BoostTransfer<String> = try bc1.jump(data: 123)
-    print("main <---- f1 resultF1ToMain = \(resultF1ToMain.data)")
-    //let _: BoostTransfer<String> = try resultF1ToMain.fromContext.jump(data: 123)
+    let t = Tester()
+    t.start(7)
 }
 
 do {
@@ -95,21 +105,30 @@ do {
 
 ```ruby
 
-/Users/lihanguang/dev_kit/sdk/swift_source/readdle/Swift_Boost_Context/.build/debug/Example
-bc1 = BoostContextImpl(_spSize: 65536, _sp: 0x00007fec89500000, _fctx: 0x00007fec894fffc0)
-main ----> f1  data = 123
-bc2 = BoostContextImpl(_spSize: 65536, _sp: 0x00007fec89511000, _fctx: 0x00007fec89510fc0)
-f1 ----> f2  data = I am f1
-f2 finish
-f1 <---- f2   resultF2ToF1 = BoostTransfer(fromContext: BoostContextProxy(_fctx: 0x00007fec89510eb0))
-BoostContextImpl.deinit: _spSize: 65536, _sp: 0x00007fec89511000, _fctx: 0x00007fec89510fc0
+main ----> f1    data = 123
+main <---- f1    data = 1234567
+main ----> f1    data = 765
+main <---- f1    data = 7654321
+main ----> f1    data = 987
 f1 finish
-main <---- f1 resultF1ToMain = 7654321
-BoostContextImpl.deinit: _spSize: 65536, _sp: 0x00007fec89500000, _fctx: 0x00007fec894fffc0
+main <---- f1    data = 9876543
+BoostContext.deinit: _spSize: 65536, _sp: 0x00007fbc45500000, _fctx: 0x00007fbc4550ffc0, .pageSize: 4096
+Tester deinit
 
 Process finished with exit code 0
 
 ```
+
+and
+
+```
+# ...
+
+BoostContext.deinit: _spSize: 65536, _sp: 0x00007fbc45500000, _fctx: 0x00007fbc4550ffc0, .pageSize: 4096
+Tester deinit
+```
+
+means no `memory leak` !
 
 **Usage in C**
 

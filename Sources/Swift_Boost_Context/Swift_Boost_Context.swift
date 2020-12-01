@@ -1,19 +1,18 @@
-
 import C_Boost_Context_fcontext
 
 import Foundation
 
 struct Swift_Boost_Context {
-    var text = "Hello, World!"
+    var text = "Hello, Swift Boost Context!"
 }
 
-public class BoostTransfer<OUTPUT>: CustomDebugStringConvertible, CustomStringConvertible {
+public class BoostTransfer<INPUT, OUTPUT>: CustomDebugStringConvertible, CustomStringConvertible {
 
-    public let fromContext: BoostContext
+    public let fromContext: BoostContextProxy<INPUT, OUTPUT>
 
     public let data: OUTPUT
 
-    init(_ fromContext: BoostContext, _ data: OUTPUT) {
+    init(_ fromContext: BoostContextProxy<INPUT, OUTPUT>, _ data: OUTPUT) {
         self.fromContext = fromContext
         self.data = data
     }
@@ -26,52 +25,48 @@ public class BoostTransfer<OUTPUT>: CustomDebugStringConvertible, CustomStringCo
     }
 }
 
-public protocol BoostContext: class, CustomDebugStringConvertible, CustomStringConvertible {
-
-    func jump<INPUT, OUTPUT>(data: INPUT) -> BoostTransfer<OUTPUT>
-
-    func jump<OUTPUT>() -> BoostTransfer<OUTPUT>
-}
-
-class BoostContextProxy: BoostContext {
+public class BoostContextProxy<INPUT, OUTPUT>: CustomDebugStringConvertible, CustomStringConvertible {
 
     let _fctx: fcontext_t
 
-    init(_ fctx: fcontext_t) { self._fctx = fctx }
+    init(_ fctx: fcontext_t) {
+        self._fctx = fctx
+    }
 
-
-    func jump<INPUT, OUTPUT>(data: INPUT) -> BoostTransfer<OUTPUT> {
+    @discardableResult
+    public func jump(data: INPUT) -> BoostTransfer<INPUT, OUTPUT> {
         let input: UnsafeMutablePointer<INPUT> = UnsafeMutablePointer.allocate(capacity: 1)
         input.initialize(repeating: data, count: 1)
 
-        //print("BoostContextProxy.jump : _fctx = \(self._fctx)")
         let tf: transfer_t = jump_fcontext(self._fctx, input)
-        //print("BoostContextProxy.jump : tf = \(tf)")
+
         let output: UnsafeMutablePointer<OUTPUT> = tf.data!.bindMemory(to: OUTPUT.self, capacity: 1)
         defer {
             output.deinitialize(count: 1)
             output.deallocate()
         }
         let result: OUTPUT = output.pointee
-        return BoostTransfer(BoostContextProxy(tf.fctx), result)
+        return BoostTransfer<INPUT, OUTPUT>(BoostContextProxy(tf.fctx), result)
     }
 
-    func jump<OUTPUT>() -> BoostTransfer<OUTPUT> {
-        return self.jump(data: ())
-    }
-
-    var description: String {
+    public var description: String {
         return "BoostContextProxy(_fctx: \(_fctx))"
     }
 
-    var debugDescription: String {
+    public var debugDescription: String {
         return "BoostContextProxy(_fctx: \(_fctx))"
     }
 }
 
 typealias CCallBack = (fcontext_t) -> Void
 
-private func cFn(_ tf: transfer_t) -> Void {
+typealias FContextStack = UnsafeMutableRawPointer
+
+public typealias FN_YIELD<INPUT, OUTPUT> = (INPUT) -> OUTPUT
+
+public typealias FN<INPUT, OUTPUT> = (/*BoostContextProxy<OUTPUT, INPUT>, */INPUT, FN_YIELD<OUTPUT, INPUT>) -> OUTPUT
+
+func cFn(_ tf: transfer_t) -> Void {
     let input: UnsafeMutablePointer<CCallBack>? = tf.data?.bindMemory(to: CCallBack.self, capacity: 1)
     if let input = input {
         let callback = input.pointee
@@ -81,13 +76,9 @@ private func cFn(_ tf: transfer_t) -> Void {
     }
 }
 
-typealias FContextStack = UnsafeMutableRawPointer
+public class BoostContext<INPUT, OUTPUT>: CustomDebugStringConvertible, CustomStringConvertible {
 
-class BoostContextImpl<_IN>: BoostContext {
-
-    typealias FN = (BoostContext, _IN) -> Void
-
-    private let _fn: FN
+    private let _fn: FN<INPUT, OUTPUT>
 
     private let _spSize: Int
 
@@ -95,12 +86,17 @@ class BoostContextImpl<_IN>: BoostContext {
 
     private let _fctx: fcontext_t
 
+    private var _yieldBoostContextInSide: BoostContextProxy<OUTPUT, INPUT>!
+
+    private var _yieldBoostContextOutSide: BoostContextProxy<INPUT, OUTPUT>?
+
     deinit {
+        _yieldBoostContextOutSide = nil
         _sp.deallocate()
-        //print("BoostContextImpl.deinit: _spSize: \(_spSize), _sp: \(_sp), _fctx: \(_fctx), .pageSize: \(Int.pageSize)")
+        print("BoostContext.deinit: _spSize: \(_spSize), _sp: \(_sp), _fctx: \(_fctx), .pageSize: \(Int.pageSize)")
     }
 
-    init(_ fn: @escaping FN) {
+    init(_ fn: @escaping FN<INPUT, OUTPUT>) {
         //let spSize: Int = 1 << 18 /* 256 KiB*/
         //let spSize: Int = 1 << 17 /* 128 KiB*/
         //let spSize: Int = 1 << 16 /* 64 KiB*/
@@ -110,50 +106,67 @@ class BoostContextImpl<_IN>: BoostContext {
         self._spSize = spSize
         self._sp = sp
         self._fctx = make_fcontext(sp + spSize, spSize, cFn)
-        //print("_fctx = \(_fctx)")
+        self._yieldBoostContextOutSide = nil
     }
 
+    /// simulate sugar syntax `yield` inside `_fn` scope
+    @inline(__always)
+    @discardableResult
+    private func yieldInside(_ data: OUTPUT) -> INPUT {
+        let btf: BoostTransfer<OUTPUT, INPUT> = self._yieldBoostContextInSide.jump(data: data)
+        self._yieldBoostContextInSide = btf.fromContext
+        return btf.data
+    }
 
-    func jump<INPUT, OUTPUT>(data: INPUT) -> BoostTransfer<OUTPUT> {
+    /// simulate sugar syntax `yield` outside `_fn` scope
+    @inline(__always)
+    @discardableResult
+    fileprivate func yieldOutside(_ data: INPUT) -> OUTPUT {
+        let btf: BoostTransfer<INPUT, OUTPUT>
+        if let yieldCtx = _yieldBoostContextOutSide {
+            btf = yieldCtx.jump(data: data)
+        } else {
+            btf = self.jump(data: data)
+        }
+        _yieldBoostContextOutSide = btf.fromContext
+        return btf.data
+    }
+
+    @discardableResult
+    public func jump(data: INPUT) -> BoostTransfer<INPUT, OUTPUT> {
         let callback: CCallBack = { [unowned self] (fromContext: fcontext_t) in
-            let fromBoostContext: BoostContextProxy = BoostContextProxy(fromContext)
-            self._fn(fromBoostContext, data as! _IN)
+            let fromBoostContext: BoostContextProxy<OUTPUT, INPUT> = BoostContextProxy(fromContext)
+            self._yieldBoostContextInSide = fromBoostContext
+
+            let result: OUTPUT = self._fn(/*fromBoostContext, */data, self.yieldInside)
+
+            self._yieldBoostContextInSide.jump(data: result)
         }
 
         let input: UnsafeMutablePointer<CCallBack> = UnsafeMutablePointer.allocate(capacity: 1)
         input.initialize(repeating: callback, count: 1)
-        /*
-        defer {
-            input.deinitialize(count: 1)
-            input.deallocate()
-        }
-        */
-        //print("jump : _fctx = \(self._fctx)")
+
         let tf: transfer_t = jump_fcontext(self._fctx, input)
-        //print("jump : tf = \(tf)")
+
         let output: UnsafeMutablePointer<OUTPUT> = tf.data!.bindMemory(to: OUTPUT.self, capacity: 1)
         defer {
             output.deinitialize(count: 1)
             output.deallocate()
         }
         let result: OUTPUT = output.pointee
-        return BoostTransfer(BoostContextProxy(tf.fctx), result)
+        return BoostTransfer<INPUT, OUTPUT>(BoostContextProxy(tf.fctx), result)
     }
 
-    func jump<_OUT>() -> BoostTransfer<_OUT> {
-        return self.jump(data: ())
-    }
-
-    var description: String {
+    public var description: String {
         return "BoostContextImpl(_spSize: \(_spSize), _sp: \(_sp), _fctx: \(_fctx))"
     }
-    var debugDescription: String {
+    public var debugDescription: String {
         return "BoostContextImpl(_spSize: \(_spSize), _sp: \(_sp), _fctx: \(_fctx))"
     }
 }
 
-public func makeBoostContext<INPUT>(_ fn: @escaping (BoostContext, INPUT) -> Void) -> BoostContext {
-    return BoostContextImpl(fn)
+public func makeBoostContext<INPUT, OUTPUT>(_ fn: @escaping FN<INPUT, OUTPUT>) -> FN_YIELD<INPUT, OUTPUT> {
+    return BoostContext(fn).yieldOutside
 }
 
 

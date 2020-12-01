@@ -21,7 +21,7 @@ let package = Package(
             // Targets can depend on other targets in this package, and on products in packages which this package depends on.
             .target(
                     name: "Swift_Boost_Context",
-                    dependencies: [/*"C_Boost_Context",*/"C_Boost_Context_fcontext"]),
+                    dependencies: ["C_Boost_Context_fcontext"]),
             .target(
                     name: "C_Boost_Context_fcontext",
                     path: "Sources/C_Boost_Context_fcontext",
@@ -32,27 +32,17 @@ let package = Package(
                         .unsafeFlags([""], .when(platforms: [.macOS])),
                         .unsafeFlags([""], .when(platforms: [.iOS])),
                         .unsafeFlags([""], .when(platforms: [.android])),
-                        .unsafeFlags([""], .when(platforms: [.linux]))
+                        .unsafeFlags([""], .when(platforms: [.linux])),
+                        .unsafeFlags([""], .when(platforms: [.windows]))
                     ],
                     swiftSettings: [
                         .unsafeFlags([""], .when(platforms: [.macOS])),
                         .unsafeFlags([""], .when(platforms: [.iOS])),
                         .unsafeFlags([""], .when(platforms: [.android])),
-                        .unsafeFlags([""], .when(platforms: [.linux]))
+                        .unsafeFlags([""], .when(platforms: [.linux])),
+                        .unsafeFlags([""], .when(platforms: [.windows]))
                     ]
             ),
-            /*.target(
-                    name: "C_Boost_Context_fcontext_prebuild",
-                    dependencies: [],
-                    linkerSettings: [
-                        .linkedLibrary("fcontext"),
-                        .unsafeFlags(["-LSources/C_Boost_Context_fcontext_prebuild/libs/osx"], .when(platforms: [.macOS]))
-                    ]
-            ),*/
-            /*.target(
-                    name: "C_Boost_Context",
-                    path: "Sources/C_Boost_Context"
-            ),*/
             .target(
                     name: "Example",
                     dependencies: ["Swift_Boost_Context"]

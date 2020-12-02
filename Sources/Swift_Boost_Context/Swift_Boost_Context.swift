@@ -64,7 +64,7 @@ typealias FContextStack = UnsafeMutableRawPointer
 
 public typealias FN_YIELD<INPUT, OUTPUT> = (INPUT) -> OUTPUT
 
-public typealias FN<INPUT, OUTPUT> = (/*BoostContextProxy<OUTPUT, INPUT>, */INPUT, FN_YIELD<OUTPUT, INPUT>) -> OUTPUT
+public typealias FN<INPUT, OUTPUT> = (INPUT, @escaping FN_YIELD<OUTPUT, INPUT>) -> OUTPUT
 
 func cFn(_ tf: transfer_t) -> Void {
     let input: UnsafeMutablePointer<CCallBack>? = tf.data?.bindMemory(to: CCallBack.self, capacity: 1)
@@ -91,9 +91,10 @@ public class BoostContext<INPUT, OUTPUT>: CustomDebugStringConvertible, CustomSt
     private var _yieldBoostContextOutSide: BoostContextProxy<INPUT, OUTPUT>?
 
     deinit {
+        _yieldBoostContextInSide = nil
         _yieldBoostContextOutSide = nil
         _sp.deallocate()
-        print("BoostContext.deinit: _spSize: \(_spSize), _sp: \(_sp), _fctx: \(_fctx), .pageSize: \(Int.pageSize)")
+        //print("BoostContext.deinit: _spSize: \(_spSize), _sp: \(_sp), _fctx: \(_fctx), .pageSize: \(Int.pageSize)")
     }
 
     init(_ fn: @escaping FN<INPUT, OUTPUT>) {
@@ -138,7 +139,7 @@ public class BoostContext<INPUT, OUTPUT>: CustomDebugStringConvertible, CustomSt
             let fromBoostContext: BoostContextProxy<OUTPUT, INPUT> = BoostContextProxy(fromContext)
             self._yieldBoostContextInSide = fromBoostContext
 
-            let result: OUTPUT = self._fn(/*fromBoostContext, */data, self.yieldInside)
+            let result: OUTPUT = self._fn(data, self.yieldInside)
 
             self._yieldBoostContextInSide.jump(data: result)
         }

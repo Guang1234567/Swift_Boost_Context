@@ -8,11 +8,11 @@ struct Swift_Boost_Context {
 
 public class BoostTransfer<INPUT, OUTPUT>: CustomDebugStringConvertible, CustomStringConvertible {
 
-    public let fromContext: BoostContextProxy<INPUT, OUTPUT>
+    public let fromContext: BoostContext<INPUT, OUTPUT>
 
     public let data: OUTPUT
 
-    init(_ fromContext: BoostContextProxy<INPUT, OUTPUT>, _ data: OUTPUT) {
+    init(_ fromContext: BoostContext<INPUT, OUTPUT>, _ data: OUTPUT) {
         self.fromContext = fromContext
         self.data = data
     }
@@ -25,7 +25,29 @@ public class BoostTransfer<INPUT, OUTPUT>: CustomDebugStringConvertible, CustomS
     }
 }
 
-public class BoostContextProxy<INPUT, OUTPUT>: CustomDebugStringConvertible, CustomStringConvertible {
+/*
+public protocol BoostContext: class, CustomDebugStringConvertible, CustomStringConvertible {
+    associatedtype INPUT
+    associatedtype OUTPUT
+
+    @discardableResult
+    func jump(data: INPUT) -> BoostTransfer<INPUT, OUTPUT>
+}
+*/
+public class BoostContext<INPUT, OUTPUT> {
+
+    @discardableResult
+    func jump(data: INPUT) -> BoostTransfer<INPUT, OUTPUT> {
+        fatalError("Method has to be overriden this is an abstract class")
+    }
+
+}
+
+public class BoostContextProxy<INPUT, OUTPUT>: BoostContext<INPUT, OUTPUT>, CustomDebugStringConvertible, CustomStringConvertible {
+    /*
+    public typealias INPUT = INPUT
+    public typealias OUTPUT = OUTPUT
+    */
 
     let _fctx: fcontext_t
 
@@ -34,6 +56,7 @@ public class BoostContextProxy<INPUT, OUTPUT>: CustomDebugStringConvertible, Cus
     }
 
     @discardableResult
+    override
     public func jump(data: INPUT) -> BoostTransfer<INPUT, OUTPUT> {
         let input: UnsafeMutablePointer<INPUT> = UnsafeMutablePointer.allocate(capacity: 1)
         input.initialize(repeating: data, count: 1)
@@ -76,7 +99,11 @@ func cFn(_ tf: transfer_t) -> Void {
     }
 }
 
-public class BoostContext<INPUT, OUTPUT>: CustomDebugStringConvertible, CustomStringConvertible {
+public class BoostContextImpl<INPUT, OUTPUT>: BoostContext<INPUT, OUTPUT>, CustomDebugStringConvertible, CustomStringConvertible {
+    /*
+    public typealias INPUT = INPUT
+    public typealias OUTPUT = OUTPUT
+    */
 
     private let _fn: FN<INPUT, OUTPUT>
 
@@ -86,15 +113,15 @@ public class BoostContext<INPUT, OUTPUT>: CustomDebugStringConvertible, CustomSt
 
     private let _fctx: fcontext_t
 
-    private var _yieldBoostContextInSide: BoostContextProxy<OUTPUT, INPUT>!
+    private var _yieldBoostContextInSide: BoostContext<OUTPUT, INPUT>!
 
-    private var _yieldBoostContextOutSide: BoostContextProxy<INPUT, OUTPUT>?
+    private var _yieldBoostContextOutSide: BoostContext<INPUT, OUTPUT>!
 
     deinit {
         _yieldBoostContextInSide = nil
         _yieldBoostContextOutSide = nil
         _sp.deallocate()
-        //print("BoostContext.deinit: _spSize: \(_spSize), _sp: \(_sp), _fctx: \(_fctx), .pageSize: \(Int.pageSize)")
+        //print("BoostContextImpl.deinit: _spSize: \(_spSize), _sp: \(_sp), _fctx: \(_fctx), .pageSize: \(Int.pageSize)")
     }
 
     init(_ fn: @escaping FN<INPUT, OUTPUT>) {
@@ -107,7 +134,8 @@ public class BoostContext<INPUT, OUTPUT>: CustomDebugStringConvertible, CustomSt
         self._spSize = spSize
         self._sp = sp
         self._fctx = make_fcontext(sp + spSize, spSize, cFn)
-        self._yieldBoostContextOutSide = nil
+        super.init()
+        self._yieldBoostContextOutSide = self
     }
 
     /// simulate sugar syntax `yield` inside `_fn` scope
@@ -124,19 +152,16 @@ public class BoostContext<INPUT, OUTPUT>: CustomDebugStringConvertible, CustomSt
     @discardableResult
     fileprivate func yieldOutside(_ data: INPUT) -> OUTPUT {
         let btf: BoostTransfer<INPUT, OUTPUT>
-        if let yieldCtx = _yieldBoostContextOutSide {
-            btf = yieldCtx.jump(data: data)
-        } else {
-            btf = self.jump(data: data)
-        }
+        btf = _yieldBoostContextOutSide.jump(data: data)
         _yieldBoostContextOutSide = btf.fromContext
         return btf.data
     }
 
     @discardableResult
+    override
     public func jump(data: INPUT) -> BoostTransfer<INPUT, OUTPUT> {
         let callback: CCallBack = { [unowned self] (fromContext: fcontext_t) in
-            let fromBoostContext: BoostContextProxy<OUTPUT, INPUT> = BoostContextProxy(fromContext)
+            let fromBoostContext: BoostContext<OUTPUT, INPUT> = BoostContextProxy(fromContext)
             self._yieldBoostContextInSide = fromBoostContext
 
             let result: OUTPUT = self._fn(data, self.yieldInside)
@@ -167,7 +192,7 @@ public class BoostContext<INPUT, OUTPUT>: CustomDebugStringConvertible, CustomSt
 }
 
 public func makeBoostContext<INPUT, OUTPUT>(_ fn: @escaping FN<INPUT, OUTPUT>) -> FN_YIELD<INPUT, OUTPUT> {
-    return BoostContext(fn).yieldOutside
+    return BoostContextImpl(fn).yieldOutside
 }
 
 

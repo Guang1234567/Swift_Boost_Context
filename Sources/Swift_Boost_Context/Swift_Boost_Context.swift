@@ -6,7 +6,7 @@ struct Swift_Boost_Context {
     var text = "Hello, Swift Boost Context!"
 }
 
-public class BoostTransfer<INPUT, OUTPUT>: CustomDebugStringConvertible, CustomStringConvertible {
+class BoostTransfer<INPUT, OUTPUT>: CustomDebugStringConvertible, CustomStringConvertible {
 
     public let fromContext: BoostContext<INPUT, OUTPUT>
 
@@ -34,7 +34,7 @@ public protocol BoostContext: class, CustomDebugStringConvertible, CustomStringC
     func jump(data: INPUT) -> BoostTransfer<INPUT, OUTPUT>
 }
 */
-public class BoostContext<INPUT, OUTPUT> {
+class BoostContext<INPUT, OUTPUT> {
 
     @discardableResult
     func jump(data: INPUT) -> BoostTransfer<INPUT, OUTPUT> {
@@ -43,7 +43,7 @@ public class BoostContext<INPUT, OUTPUT> {
 
 }
 
-public class BoostContextProxy<INPUT, OUTPUT>: BoostContext<INPUT, OUTPUT>, CustomDebugStringConvertible, CustomStringConvertible {
+class BoostContextProxy<INPUT, OUTPUT>: BoostContext<INPUT, OUTPUT>, CustomDebugStringConvertible, CustomStringConvertible {
     /*
     public typealias INPUT = INPUT
     public typealias OUTPUT = OUTPUT
@@ -99,7 +99,7 @@ func cFn(_ tf: transfer_t) -> Void {
     }
 }
 
-public class BoostContextImpl<INPUT, OUTPUT>: BoostContext<INPUT, OUTPUT>, CustomDebugStringConvertible, CustomStringConvertible {
+class BoostContextImpl<INPUT, OUTPUT>: BoostContext<INPUT, OUTPUT>, CustomDebugStringConvertible, CustomStringConvertible {
     /*
     public typealias INPUT = INPUT
     public typealias OUTPUT = OUTPUT

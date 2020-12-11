@@ -127,6 +127,13 @@ Process finished with exit code 0
 
 ![](./screenshot_macOS.png)
 
+
+- android api 27  x86_64 avd
+
+![](./screenshot_android.png)
+
+> PS: [How android-swift-toolchain install on macOS?](https://juejin.cn/post/6898587695925657613/)
+
 And
 
 ```
@@ -137,6 +144,9 @@ Tester deinit
 ```
 
 means no `memory leak` !
+
+
+
 
 **Usage in C**
 

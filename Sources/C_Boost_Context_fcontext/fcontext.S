@@ -49,13 +49,13 @@
         #include "./asm/ontop_arm_aapcs_macho_gas.S"
     #endif
 #elif _WIN64
-        #include "./asm/jump_x86_64_ms_pe_masm.asm"
-        #include "./asm/make_x86_64_ms_pe_masm.asm"
-        #include "./asm/ontop_x86_64_ms_pe_masm.asm"
+        #include "./asm/jump_x86_64_ms_pe_gas.asm"
+        #include "./asm/make_x86_64_ms_pe_gas.asm"
+        #include "./asm/ontop_x86_64_ms_pe_gas.asm"
 #elif _WIN32
-        #include "./asm/jump_i386_ms_pe_masm.asm"
-        #include "./asm/make_i386_ms_pe_masm.asm"
-        #include "./asm/ontop_i386_ms_pe_masm.asm"
+        #include "./asm/jump_i386_ms_pe_gas.asm"
+        #include "./asm/make_i386_ms_pe_gas.asm"
+        #include "./asm/ontop_i386_ms_pe_gas.asm"
 #else
     #include "./asm/jump_arm64_aapcs_elf_gas.S"
 #endif

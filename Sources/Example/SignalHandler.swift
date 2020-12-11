@@ -1,3 +1,4 @@
+#if !os(Windows)
 
 import Foundation
 
@@ -28,3 +29,5 @@ func registerSignalHanlder() {
     signal(SIGABRT, signalHandler);
     signal(SIGILL, signalHandler);
 }
+
+#endif
